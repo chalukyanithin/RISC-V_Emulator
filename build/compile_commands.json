@@ -1,0 +1,14 @@
+[
+{
+  "directory": "F:/RISC-V/build",
+  "command": "C:\\MinGW\\bin\\g++.exe  @CMakeFiles\\rvemu.dir\\includes_CXX.rsp -g -Wall -Wextra -Wpedantic -O0 -g -o CMakeFiles\\rvemu.dir\\src\\main.cpp.obj -c F:\\RISC-V\\src\\main.cpp",
+  "file": "F:/RISC-V/src/main.cpp",
+  "output": "CMakeFiles/rvemu.dir/src/main.cpp.obj"
+},
+{
+  "directory": "F:/RISC-V/build",
+  "command": "C:\\MinGW\\bin\\g++.exe  @CMakeFiles\\rvemu.dir\\includes_CXX.rsp -g -Wall -Wextra -Wpedantic -O0 -g -o CMakeFiles\\rvemu.dir\\src\\cpu\\cpu.cpp.obj -c F:\\RISC-V\\src\\cpu\\cpu.cpp",
+  "file": "F:/RISC-V/src/cpu/cpu.cpp",
+  "output": "CMakeFiles/rvemu.dir/src/cpu/cpu.cpp.obj"
+}
+]
