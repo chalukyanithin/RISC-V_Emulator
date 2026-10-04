@@ -27,7 +27,24 @@ public:
              | (static_cast<uint32_t>(mem[addr + 2]) << 16)
              | (static_cast<uint32_t>(mem[addr + 3]) << 24);
     }
+    // Inside DRAM class:
+    inline uint64_t load64(uint64_t addr) const {
+        // Compose a 64-bit value from two 32-bit little-endian loads
+        return static_cast<uint64_t>(load32(addr)) | 
+              (static_cast<uint64_t>(load32(addr + 4)) << 32);
+    }
 
+    inline void store64(uint64_t addr, uint64_t val) {
+        // Break the 64-bit value into bytes and store sequentially
+        mem[addr]     = val & 0xFF;
+        mem[addr + 1] = (val >> 8) & 0xFF;
+        mem[addr + 2] = (val >> 16) & 0xFF;
+        mem[addr + 3] = (val >> 24) & 0xFF;
+        mem[addr + 4] = (val >> 32) & 0xFF;
+        mem[addr + 5] = (val >> 40) & 0xFF;
+        mem[addr + 6] = (val >> 48) & 0xFF;
+        mem[addr + 7] = (val >> 56) & 0xFF;
+    }
     // We will need a method to inject binary code (like our bootloader) 
     // directly into memory from the host system.
     void store8(uint64_t addr, uint8_t val) {

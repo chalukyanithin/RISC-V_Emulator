@@ -78,7 +78,8 @@ private:
     void exec_addi(uint32_t inst);
     //void exec_lui(uint32_t inst);
     void exec_op_imm(uint32_t inst); // Handle all 0x13 instructions (ADDI, etc.)
-
+    void exec_load(uint32_t inst);
+    void exec_store(uint32_t inst);
 public:
     explicit CPU(Bus *system_bus);
     ~CPU() = default;

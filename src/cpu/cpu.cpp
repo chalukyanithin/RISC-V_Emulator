@@ -89,11 +89,17 @@ void CPU::execute_loop() {
 
         // 3. EXECUTE
         switch (opcode) {
+            case 0x3:
+                exec_load(inst);
+                break;
+            case 0x13:
+                exec_op_imm(inst);
+                break;
+            case 0x23:
+                exec_store(inst);
+                break;
             case 0x37: // LUI
                 exec_lui(inst);
-                break;
-            case 0x13: // OP-IMM (ADDI, etc.)
-                exec_op_imm(inst);
                 break;
             default:
                 std::cerr << "TRAP: Illegal Instruction executed at PC: 0x" 
@@ -137,6 +143,52 @@ void CPU::exec_op_imm(uint32_t inst) {
             std::cerr << "TRAP: Unimplemented OP-IMM funct3: " << (int)funct3 << "\n";
             // We will implement proper hardware traps in Phase 2
             break; 
+    }
+}
+
+// Load Instruction (I-Type format)
+void CPU::exec_load(uint32_t inst) {
+    uint8_t rd = extract_rd(inst);
+    uint8_t rs1 = extract_rs1(inst);
+    uint8_t funct3 = extract_funct3(inst);
+    
+    // I-Type sign-extension (same as ADDI)
+    int64_t imm = static_cast<int64_t>(static_cast<int32_t>(inst) >> 20);
+    uint64_t addr = get_reg(rs1) + imm;
+
+    switch (funct3) {
+        case 0x3: // LD (Load Doubleword - 64 bit)
+            set_reg(rd, bus->read64(addr));
+            break;
+        default:
+            std::cerr << "TRAP: Unimplemented LOAD funct3: " << (int)funct3 << "\n";
+            break;
+    }
+}
+
+// Store Instruction (S-Type format)
+void CPU::exec_store(uint32_t inst) {
+    uint8_t rs1 = extract_rs1(inst);
+    uint8_t rs2 = extract_rs2(inst);
+    uint8_t funct3 = extract_funct3(inst);
+
+    // The S-Type Reassembly Trick:
+    // 1. (inst & 0xFE000000) isolates the top 7 bits. We cast to signed int32 
+    //    and shift right by 20 to move them to positions 11-5, sign-extending automatically.
+    // 2. ((inst >> 7) & 0x1F) extracts the bottom 5 bits.
+    // 3. We bitwise OR them together to recreate the 12-bit signed offset.
+    int64_t imm = static_cast<int64_t>(static_cast<int32_t>(inst & 0xFE000000) >> 20) 
+                  | ((inst >> 7) & 0x1F);
+                  
+    uint64_t addr = get_reg(rs1) + imm;
+
+    switch (funct3) {
+        case 0x3: // SD (Store Doubleword - 64 bit)
+            bus->write64(addr, get_reg(rs2));
+            break;
+        default:
+            std::cerr << "TRAP: Unimplemented STORE funct3: " << (int)funct3 << "\n";
+            break;
     }
 }
 

@@ -31,6 +31,21 @@ public:
         std::cerr << "MMIO Trap: Unmapped memory read at 0x" << std::hex << addr << "\n";
         throw std::out_of_range("Memory access violation");
     }
+    // Inside Bus class:
+    inline uint64_t read64(uint64_t addr) const {
+        if (addr >= DRAM_BASE && addr < DRAM_BASE + DRAM_SIZE) {
+            return dram.load64(addr - DRAM_BASE);
+        }
+        throw std::out_of_range("MMIO Read64 out of bounds");
+    }
+
+    inline void write64(uint64_t addr, uint64_t val) {
+        if (addr >= DRAM_BASE && addr < DRAM_BASE + DRAM_SIZE) {
+            dram.store64(addr - DRAM_BASE, val);
+            return;
+        }
+        throw std::out_of_range("MMIO Write64 out of bounds");
+    }
 
     // Utility to load a raw binary program into the start of RAM
     void load_program(const std::vector<uint8_t>& code) {

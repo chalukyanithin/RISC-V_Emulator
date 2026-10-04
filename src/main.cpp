@@ -28,8 +28,10 @@ int main() {
     //   - Little-Endian Byte Order: 0x13, 0x83, 0x12, 0x00
     
     std::vector<uint8_t> payload = {
-        0xb7, 0x52, 0x34, 0x12, // LUI
-        0x13, 0x83, 0x12, 0x00  // ADDI (Unimplemented)
+        0xb7, 0x52, 0x34, 0x12, // LUI x5, 0x12345 (Loads 0x12345000 into x5)
+        0x13, 0x83, 0x12, 0x00, // ADDI x6, x5, 1  (x6 = x5 + 1)
+        0x23, 0x34, 0x62, 0x00, // SD x6, 8(x4)    (Store x6 into RAM at address x4 + 8)
+        0x83, 0xb3, 0x82, 0x00  // LD x7, 8(x4)    (Load RAM address x4 + 8 into x7)
     };
 
     // 4. Inject the payload directly into physical RAM at address 0x80000000
