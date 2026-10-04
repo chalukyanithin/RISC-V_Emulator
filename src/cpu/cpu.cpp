@@ -79,7 +79,7 @@ void CPU::execute_loop() {
         // Let's pretend we fetched: LUI x5, 0x12345 
         // (Loads the value 0x12345000 into register 5)
         // The binary encoding for this specific instruction is: 0x123452b7
-        uint32_t inst = 0x123452b7; 
+        //uint32_t inst = 0x123452b7; 
 
         // 2. DECODE
         uint8_t opcode = extract_opcode(inst);
