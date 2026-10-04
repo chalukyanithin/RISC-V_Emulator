@@ -76,6 +76,8 @@ private:
 
     void exec_lui(uint32_t inst);
     void exec_addi(uint32_t inst);
+    //void exec_lui(uint32_t inst);
+    void exec_op_imm(uint32_t inst); // Handle all 0x13 instructions (ADDI, etc.)
 
 public:
     explicit CPU(Bus *system_bus);

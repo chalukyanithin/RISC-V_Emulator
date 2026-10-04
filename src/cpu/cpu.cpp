@@ -85,14 +85,20 @@ void CPU::execute_loop() {
         uint8_t opcode = extract_opcode(inst);
 
         // 3. EXECUTE
+        // ... inside CPU::execute_loop() ...
+
+        // 3. EXECUTE
         switch (opcode) {
-            case 0x37: // 0x37 is the official RISC-V opcode for LUI
+            case 0x37: // LUI
                 exec_lui(inst);
+                break;
+            case 0x13: // OP-IMM (ADDI, etc.)
+                exec_op_imm(inst);
                 break;
             default:
                 std::cerr << "TRAP: Illegal Instruction executed at PC: 0x" 
                           << std::hex << pc << "\n";
-                return; // Stop the emulator on a crash
+                return; 
         }
 
         // 4. ADVANCE
@@ -102,3 +108,35 @@ void CPU::execute_loop() {
         break; 
     }
 }
+
+// ---------------------------------------------------------
+// Instruction Execution
+// ---------------------------------------------------------
+
+void CPU::exec_op_imm(uint32_t inst) {
+    uint8_t rd = extract_rd(inst);
+    uint8_t rs1 = extract_rs1(inst);
+    uint8_t funct3 = extract_funct3(inst);
+
+    // The C++ Sign-Extension Trick:
+    // By casting the 32-bit unsigned instruction to a SIGNED 32-bit integer,
+    // and then right-shifting by 20, the C++ compiler automatically performs 
+    // an "Arithmetic Shift". It shifts the top 12 bits down and fills the 
+    // empty upper bits with the sign bit (1s if negative, 0s if positive).
+    // We then cast it to 64-bit to match our registers.
+    int64_t imm = static_cast<int64_t>(static_cast<int32_t>(inst) >> 20);
+
+    switch (funct3) {
+        case 0x0: { // 0x0 is ADDI (Add Immediate)
+            // regs[rd] = regs[rs1] + imm
+            uint64_t val1 = get_reg(rs1);
+            set_reg(rd, val1 + imm);
+            break;
+        }
+        default:
+            std::cerr << "TRAP: Unimplemented OP-IMM funct3: " << (int)funct3 << "\n";
+            // We will implement proper hardware traps in Phase 2
+            break; 
+    }
+}
+
