@@ -111,7 +111,7 @@ void CPU::execute_loop() {
         pc += 4; // Move to the next 32-bit instruction
 
         // Temporary break for our stub test so it doesn't loop forever
-        break; 
+        //break; 
     }
 }
 
