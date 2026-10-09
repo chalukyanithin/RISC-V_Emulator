@@ -4,6 +4,19 @@
 #include <cstdint>
 #include <string>
 
+enum class TrapCause : uint64_t {
+        InstructionAddressMisaligned = 0,
+        InstructionAccessFault       = 1,
+        IllegalInstruction           = 2,
+        Breakpoint                   = 3,
+        EnvironmentCallFromUMode     = 8,
+        EnvironmentCallFromSMode     = 9,
+        EnvironmentCallFromMMode     = 11,
+        InstructionPageFault         = 12,
+        LoadPageFault                = 13,
+        StorePageFault               = 15
+    };
+
 class Bus;
 
 class CPU
@@ -30,6 +43,8 @@ private:
     // RV64 requires that register x0 is hardwired to zero.
     // We enforce this by intercepting all register writes.
     // Marked 'inline' because this is called millions of times per second.
+    CSR csr;
+    PrivilegeMode mode = PrivilegeMode::Machine;
     inline void set_reg(uint8_t index, uint64_t val)
     {
         if (index != 0)
@@ -73,13 +88,20 @@ private:
     {
         return (inst >> 25) & 0x7F; // Bits 25-31
     }
-
+    // Standard RISC-V Exception Codes
+    
     void exec_lui(uint32_t inst);
     void exec_addi(uint32_t inst);
     //void exec_lui(uint32_t inst);
     void exec_op_imm(uint32_t inst); // Handle all 0x13 instructions (ADDI, etc.)
     void exec_load(uint32_t inst);
     void exec_store(uint32_t inst);
+    void exec_branch(uint32_t inst, uint64_t inst_pc);
+    void exec_jal(uint32_t inst, uint64_t inst_pc);
+    void exec_jalr(uint32_t inst, uint64_t inst_pc);
+    void exec_system(uint32_t inst, uint64_t inst_pc);
+    // The centralized hardware trap mechanism
+    void trap(TrapCause cause, uint64_t epc, uint64_t tval = 0);
 public:
     explicit CPU(Bus *system_bus);
     ~CPU() = default;

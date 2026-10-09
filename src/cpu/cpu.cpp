@@ -1,7 +1,9 @@
 #include "cpu/cpu.hpp"
+#include "cpu/csr.hpp"
 #include "memory/bus.hpp" // We will uncomment this when we build the Bus
 #include <iostream>
 #include <iomanip>
+
 
 // ---------------------------------------------------------
 // Constructor
@@ -70,6 +72,7 @@ void CPU::execute_loop() {
     // For now, we will break the loop manually during testing.
     // Later, this runs infinitely until the OS halts.
     while (true) {
+        uint64_t inst_pc = pc;
         
         // 1. FETCH
         // We ask the Bus to read 4 bytes (32 bits) from memory at the current PC.
@@ -83,6 +86,7 @@ void CPU::execute_loop() {
 
         // 2. DECODE
         uint8_t opcode = extract_opcode(inst);
+        pc += 4;
 
         // 3. EXECUTE
         // ... inside CPU::execute_loop() ...
@@ -101,17 +105,22 @@ void CPU::execute_loop() {
             case 0x37: // LUI
                 exec_lui(inst);
                 break;
+            case 0x67: // JALR
+                exec_jalr(inst, inst_pc);
+                break;
+            case 0x6F: // JAL
+                exec_jal(inst, inst_pc);
+                break;
+            case 0x73: // SYSTEM (CSR manipulation, ECALL, EBREAK)
+                exec_system(inst, inst_pc);
+                break;
             default:
                 std::cerr << "TRAP: Illegal Instruction executed at PC: 0x" 
                           << std::hex << pc << "\n";
                 return; 
         }
 
-        // 4. ADVANCE
-        pc += 4; // Move to the next 32-bit instruction
-
-        // Temporary break for our stub test so it doesn't loop forever
-        //break; 
+         
     }
 }
 
@@ -192,3 +201,182 @@ void CPU::exec_store(uint32_t inst) {
     }
 }
 
+void CPU::exec_branch(uint32_t inst, uint64_t inst_pc) {
+    uint8_t rs1 = extract_rs1(inst);
+    uint8_t rs2 = extract_rs2(inst);
+    uint8_t funct3 = extract_funct3(inst);
+
+    // Reassemble the scrambled B-Type immediate
+    // 1. Bit 31 -> 12 (Sign extended via arithmetic right shift)
+    // 2. Bit 7 -> 11
+    // 3. Bits 30:25 -> 10:5
+    // 4. Bits 11:8 -> 4:1
+    int64_t imm = static_cast<int64_t>(static_cast<int32_t>(inst & 0x80000000) >> 19)
+                | ((inst & 0x80) << 4)
+                | ((inst >> 20) & 0x7E0)
+                | ((inst >> 7) & 0x1E);
+
+    uint64_t val1 = get_reg(rs1);
+    uint64_t val2 = get_reg(rs2);
+    bool take_branch = false;
+
+    switch (funct3) {
+        case 0x0: // BEQ (Branch if Equal)
+            take_branch = (val1 == val2);
+            break;
+        case 0x1: // BNE (Branch if Not Equal)
+            take_branch = (val1 != val2);
+            break;
+        // Other branches (BLT, BGE) will go here later
+        default:
+            std::cerr << "TRAP: Unimplemented BRANCH funct3: " << (int)funct3 << "\n";
+            break;
+    }
+
+    if (take_branch) {
+        pc = inst_pc + imm; // Update the Program Counter
+    }
+}
+
+// JAL (Jump and Link) - J-Type Format
+void CPU::exec_jal(uint32_t inst, uint64_t inst_pc) {
+    uint8_t rd = extract_rd(inst);
+
+    // Reassemble the scrambled J-Type 20-bit immediate
+    // 1. Bit 31 -> 20 (Sign extended)
+    // 2. Bits 30:21 -> 10:1
+    // 3. Bit 20 -> 11
+    // 4. Bits 19:12 -> 19:12
+    int64_t imm = static_cast<int64_t>(static_cast<int32_t>(inst & 0x80000000) >> 11)
+                | (inst & 0xFF000)
+                | ((inst >> 9) & 0x800)
+                | ((inst >> 20) & 0x7FE);
+
+    // 1. Link: Save the return address (PC + 4) into rd.
+    // Note: inst_pc is the PC of this JAL instruction.
+    set_reg(rd, inst_pc + 4);
+
+    // 2. Jump: Update the PC.
+    pc = inst_pc + imm;
+}
+
+// JALR (Jump and Link Register) - I-Type Format
+void CPU::exec_jalr(uint32_t inst, uint64_t inst_pc) {
+    uint8_t rd = extract_rd(inst);
+    uint8_t rs1 = extract_rs1(inst);
+    
+    // Standard I-Type sign-extension
+    int64_t imm = static_cast<int64_t>(static_cast<int32_t>(inst) >> 20);
+
+    // 1. Calculate target: rs1 + imm. 
+    // RISC-V requires clearing the lowest bit to ensure 2-byte alignment.
+    uint64_t target = (get_reg(rs1) + imm) & ~1ULL;
+
+    // 2. Link: Save return address.
+    set_reg(rd, inst_pc + 4);
+
+    // 3. Jump: Update the PC.
+    pc = target;
+}
+
+void CPU::exec_system(uint32_t inst, uint64_t inst_pc) {
+    uint8_t rd = extract_rd(inst);
+    uint8_t rs1 = extract_rs1(inst);
+    uint8_t funct3 = extract_funct3(inst);
+    
+    // The CSR address is stored in the upper 12 bits of the instruction
+    uint16_t csr_addr = (inst >> 20) & 0xFFF;
+
+    if (funct3 == 0x0) {
+        // These are not CSR instructions; they are environment calls/breaks.
+        switch (csr_addr) {
+            case 0x000: { // ECALL
+                // Determine cause based on current privilege mode
+                TrapCause cause;
+                if (mode == PrivilegeMode::User) cause = TrapCause::EnvironmentCallFromUMode;
+                else if (mode == PrivilegeMode::Supervisor) cause = TrapCause::EnvironmentCallFromSMode;
+                else cause = TrapCause::EnvironmentCallFromMMode;
+                
+                // Trigger the trap. 
+                // The PC passed is the PC of the ECALL instruction itself.
+                trap(cause, inst_pc);
+                return; // Stop execution of this instruction and immediately fetch from the trap vector
+            }
+            case 0x001: // EBREAK
+                trap(TrapCause::Breakpoint, inst_pc);
+                return;
+            // (MRET and SRET will go here later to return from traps)
+            default:
+                std::cerr << "TRAP: Illegal SYSTEM instruction at PC: 0x" << std::hex << inst_pc << "\n";
+                trap(TrapCause::IllegalInstruction, inst_pc, inst);
+                return;
+        }
+    }
+
+    switch (funct3) {
+        case 0x1: { // CSRRW (Read / Write)
+            uint64_t old_val = csr.read(csr_addr);
+            csr.write(csr_addr, get_reg(rs1));
+            // Only update destination if rd is not x0 (hardwired to 0)
+            if (rd != 0) {
+                set_reg(rd, old_val);
+            }
+            break;
+        }
+        case 0x2: { // CSRRS (Read / Set)
+            uint64_t old_val = csr.read(csr_addr);
+            // If rs1 is x0, this is a pure read, no write occurs.
+            if (rs1 != 0) {
+                csr.write(csr_addr, old_val | get_reg(rs1));
+            }
+            if (rd != 0) {
+                set_reg(rd, old_val);
+            }
+            break;
+        }
+        case 0x3: { // CSRRC (Read / Clear)
+            uint64_t old_val = csr.read(csr_addr);
+            if (rs1 != 0) {
+                // Bitwise AND with the bitwise NOT of rs1 clears the bits
+                csr.write(csr_addr, old_val & ~get_reg(rs1));
+            }
+            if (rd != 0) {
+                set_reg(rd, old_val);
+            }
+            break;
+        }
+        // ... (ECALL and EBREAK will go here)
+        default:
+            std::cerr << "TRAP: Unimplemented SYSTEM funct3: " << (int)funct3 << "\n";
+            break;
+    }
+
+    
+
+    
+}
+
+void CPU::trap(TrapCause cause, uint64_t epc, uint64_t tval) {
+    // 1. Save the Program Counter where the exception occurred
+    csr.write(MEPC, epc);
+
+    // 2. Save the cause of the trap
+    csr.write(MCAUSE, static_cast<uint64_t>(cause));
+
+    // 3. Save any trap-specific value (e.g., the bad memory address for a page fault)
+    // For ECALLs, this is usually 0.
+    csr.write(0x343, tval); // 0x343 is MTVAL (Machine Trap Value)
+
+    // 4. Save previous privilege mode and disable interrupts (simplified for Phase 2)
+    // Real hardware manipulates specific bits in the 'mstatus' CSR here to preserve
+    // the previous state so the OS can execute an MRET instruction to return later.
+    
+    // 5. Elevate privilege to Machine Mode
+    mode = PrivilegeMode::Machine;
+
+    // 6. Jump to the Kernel's trap handler
+    // The OS sets up MTVEC (0x305) during boot. We read it, mask out the 
+    // lowest 2 bits (which dictate vectoring modes), and jump there.
+    uint64_t trap_vector = csr.read(0x305) & ~0x3ULL;
+    pc = trap_vector;
+}
