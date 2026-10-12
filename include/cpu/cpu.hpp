@@ -45,19 +45,6 @@ private:
     // Marked 'inline' because this is called millions of times per second.
     CSR csr;
     PrivilegeMode mode = PrivilegeMode::Machine;
-    inline void set_reg(uint8_t index, uint64_t val)
-    {
-        if (index != 0)
-        {
-            regs[index] = val;
-        }
-    }
-
-    // Unsafe direct read for when we know the index is valid.
-    inline uint64_t get_reg(uint8_t index) const
-    {
-        return regs[index];
-    }
 
     inline uint8_t extract_opcode(uint32_t inst) const
     {
@@ -105,6 +92,20 @@ private:
 public:
     explicit CPU(Bus *system_bus);
     ~CPU() = default;
+
+    inline void set_reg(uint8_t index, uint64_t val)
+    {
+        if (index != 0)
+        {
+            regs[index] = val;
+        }
+    }
+
+    // Unsafe direct read for when we know the index is valid.
+    inline uint64_t get_reg(uint8_t index) const
+    {
+        return regs[index];
+    }
 
     void execute_loop();
 

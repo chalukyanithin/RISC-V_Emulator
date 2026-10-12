@@ -72,9 +72,21 @@ public:
     }
 
     // Utility to load a raw binary program into the start of RAM
-    void load_program(const std::vector<uint8_t>& code) {
-        for (size_t i = 0; i < code.size(); ++i) {
-            dram.store8(i, code[i]);
+    // Update this method inside include/memory/bus.hpp
+    void load_program(const std::vector<uint8_t>& code, uint64_t physical_base_addr = DRAM_BASE) {
+        
+        // Ensure the address is within DRAM
+        if (physical_base_addr >= DRAM_BASE && physical_base_addr < DRAM_BASE + DRAM_SIZE) {
+            
+            // Calculate where in the vector this should start
+            uint64_t dram_offset = physical_base_addr - DRAM_BASE;
+            
+            for (size_t i = 0; i < code.size(); ++i) {
+                // Ensure we don't write past the end of our virtual RAM
+                if (dram_offset + i < DRAM_SIZE) {
+                    dram.store8(dram_offset + i, code[i]);
+                }
+            }
         }
     }
 };
