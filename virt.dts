@@ -1,0 +1,54 @@
+/dts-v1/;
+
+/ {
+    #address-cells = <2>; /* Use 64-bit memory addresses */
+    #size-cells = <2>;    /* Use 64-bit sizes */
+    
+    compatible = "riscv-virtio";
+    model = "riscv-virtio,qemu"; // We mimic QEMU's virt machine so standard Linux images work
+
+    // 1. Describe the CPU we built
+    cpus {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        timebase-frequency = <10000000>; // Virtual clock speed
+
+        cpu@0 {
+            device_type = "cpu";
+            reg = <0>;           // CPU ID (Hart 0)
+            status = "okay";
+            compatible = "riscv";
+            riscv,isa = "rv64imafdc"; // The instruction sets we support
+            mmu-type = "riscv,sv39";  // Tell Linux to use the Sv39 page walker we built!
+        }
+    };
+
+    // 2. Describe the Motherboard (System on Chip)
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+        compatible = "simple-bus";
+        ranges; // Map all child devices directly to the main address space
+
+        // 3. Describe the UART at 0x10000000
+        uart@10000000 {
+            device_type = "serial";
+            compatible = "ns16550a";  // The exact chip we emulated
+            reg = <0x00 0x10000000 0x00 0x100>; // Address 0x10000000, Size 256 bytes
+            clock-frequency = <38400>;
+        };
+    };
+
+    // 4. Describe the RAM (128 MB at 0x80000000)
+    memory@80000000 {
+        device_type = "memory";
+        // 0x8000000 is 128MB in hex
+        reg = <0x00 0x80000000 0x00 0x8000000>; 
+    };
+
+    // Tell Linux which serial port to use for the terminal
+    chosen {
+        bootargs = "console=ttyS0";
+        stdout-path = "/soc/uart@10000000";
+    };
+};

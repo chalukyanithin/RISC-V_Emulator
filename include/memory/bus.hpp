@@ -1,5 +1,6 @@
 #pragma once
 #include "memory/dram.hpp"
+#include "device/uart.hpp"
 #include <cstdint>
 #include <iostream>
 #include <stdexcept>
@@ -7,10 +8,14 @@
 class Bus {
 private:
     DRAM dram;
+    UART uart; // Instantiate the UART hardware
     
     // The standard base address for physical RAM in a RISC-V system
     static constexpr uint64_t DRAM_BASE = 0x80000000;
     static constexpr uint64_t DRAM_SIZE = 1024 * 1024 * 128; // 128 MB
+
+    static constexpr uint64_t UART_BASE = 0x10000000;
+    static constexpr uint64_t UART_SIZE = 0x100; // The UART registers span 256 bytes
 
 public:
     Bus() : dram(DRAM_SIZE) {}
@@ -45,6 +50,25 @@ public:
             return;
         }
         throw std::out_of_range("MMIO Write64 out of bounds");
+    }
+
+    // Update the read/write logic to route to the UART!
+    inline uint8_t load8(uint64_t addr) {
+        if (addr >= UART_BASE && addr < UART_BASE + UART_SIZE) {
+            // Subtract the base address to get the 0-based register offset (e.g. 0x05 for LSR)
+            return uart.load(addr - UART_BASE); 
+        }
+        // ... DRAM fallback logic
+        throw std::out_of_range("MMIO Load out of bounds");
+    }
+
+    inline void store8(uint64_t addr, uint8_t val) {
+        if (addr >= UART_BASE && addr < UART_BASE + UART_SIZE) {
+            uart.store(addr - UART_BASE, val);
+            return;
+        }
+        // ... DRAM fallback logic
+        throw std::out_of_range("MMIO Store out of bounds");
     }
 
     // Utility to load a raw binary program into the start of RAM
