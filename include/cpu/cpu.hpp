@@ -3,6 +3,8 @@
 #include <array>
 #include <cstdint>
 #include <string>
+#include "cpu/csr.hpp"
+#include "memory/bus.hpp"
 
 enum class TrapCause : uint64_t {
         InstructionAddressMisaligned = 0,

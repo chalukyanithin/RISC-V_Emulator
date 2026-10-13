@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/nithin/RISC-V_Emulator/build/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

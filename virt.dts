@@ -20,7 +20,7 @@
             compatible = "riscv";
             riscv,isa = "rv64imafdc"; // The instruction sets we support
             mmu-type = "riscv,sv39";  // Tell Linux to use the Sv39 page walker we built!
-        }
+        };
     };
 
     // 2. Describe the Motherboard (System on Chip)

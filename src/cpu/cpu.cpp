@@ -87,6 +87,8 @@ void CPU::execute_loop() {
         // 2. DECODE
         uint8_t opcode = extract_opcode(inst);
         pc += 4;
+	//uint32_t opcode = inst & 0x7f;
+        uint32_t rd     = (inst >> 7) & 0x1f;
 
         // 3. EXECUTE
         // ... inside CPU::execute_loop() ...
@@ -99,6 +101,15 @@ void CPU::execute_loop() {
             case 0x13:
                 exec_op_imm(inst);
                 break;
+	   case 0x17: { // AUIPC (Add Upper Immediate to PC)
+                // Extract the upper 20 bits (U-type immediate)
+                // We cast to int32_t to ensure proper sign extension if the top bit is 1
+                int64_t imm = (int32_t)(inst & 0xfffff000); 
+                
+                // Add the immediate to the PC of THIS instruction and store in rd
+                set_reg(rd, inst_pc + imm);
+                break;
+            }
             case 0x23:
                 exec_store(inst);
                 break;
@@ -115,9 +126,11 @@ void CPU::execute_loop() {
                 exec_system(inst, inst_pc);
                 break;
             default:
-                std::cerr << "TRAP: Illegal Instruction executed at PC: 0x" 
-                          << std::hex << pc << "\n";
-                return; 
+            std::cerr << "TRAP: Illegal Instruction executed at PC: 0x" 
+                      << std::hex << inst_pc 
+                      << " | Raw Instruction: 0x" << inst << "\n"; // <-- Add this
+            trap(TrapCause::IllegalInstruction, inst_pc, inst);
+            return;
         }
 
          

@@ -1,11 +1,10 @@
 file(REMOVE_RECURSE
-  "CMakeFiles/rvemu.dir/src/cpu/cpu.cpp.obj"
-  "CMakeFiles/rvemu.dir/src/cpu/cpu.cpp.obj.d"
-  "CMakeFiles/rvemu.dir/src/main.cpp.obj"
-  "CMakeFiles/rvemu.dir/src/main.cpp.obj.d"
-  "librvemu.dll.a"
-  "rvemu.exe"
-  "rvemu.exe.manifest"
+  "CMakeFiles/rvemu.dir/link.d"
+  "CMakeFiles/rvemu.dir/src/cpu/cpu.cpp.o"
+  "CMakeFiles/rvemu.dir/src/cpu/cpu.cpp.o.d"
+  "CMakeFiles/rvemu.dir/src/main.cpp.o"
+  "CMakeFiles/rvemu.dir/src/main.cpp.o.d"
+  "rvemu"
   "rvemu.pdb"
 )
 
